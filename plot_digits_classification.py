@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 # Import datasets, classifiers and performance metrics
 from sklearn import datasets, svm, metrics
 from sklearn.model_selection import train_test_split
-
+import numpy as np
 ###############################################################################
 # Digits dataset
 # --------------
@@ -56,49 +56,56 @@ for ax, image, label in zip(axes, digits.images, digits.target):
 # in the test subset.
 
 # flatten the images
-n_samples = len(digits.images)
-data = digits.images.reshape((n_samples, -1))
+from skimage.transform import rescale
+print(f"Size of Input image:\t\t{digits.images[0].shape}\t\n")
+
+rescaled_images = np.asarray([rescale(img, 0.25, anti_aliasing=False) for img in digits.images])
+    
+    #print(rescaled_images)
+print(f"Size of Rescaled image:\t\t{rescaled_images[0].shape}\n")
+
+# flatten the images
+n_samples = len(rescaled_images)
+data = rescaled_images.reshape((n_samples, -1))
+
+
+
 
 # Create a classifier: a support vector classifier
-clf = svm.SVC(gamma=0.001)
-
-# Split data into 50% train and 50% test subsets
-X_train, X_test, y_train, y_test = train_test_split(
-    data, digits.target, test_size=0.5, shuffle=False
+param_grid = {'gamma': [1, 0.1, 0.01, 0.001, 0.0001], 'C': [0.1, 1, 20, 100,2000] } 
+best_accuracy=[-1,-1,-1]
+#most_accurate_model = None
+for GAMMA in param_grid['gamma']:
+    for C in param_grid['C']:
+        hyper_params = {'gamma':GAMMA, 'C':C}
+        clf = svm.SVC()
+        clf.set_params(**hyper_params)
+# Split data into 40% train,30% test. 30% dev  subsets
+    X_train, X_dev_test, y_train, y_dev_test = train_test_split(
+    data, digits.target, test_size=0.6, shuffle=False
+)
+    X_dev, X_test, y_dev, y_test = train_test_split(
+    X_dev_test, y_dev_test, test_size=0.5, shuffle=False
 )
 
 # Learn the digits on the train subset
-clf.fit(X_train, y_train)
+    clf.fit(X_train, y_train)
 
-# Predict the value of the digit on the test subset
-predicted = clf.predict(X_test)
+
+ # Predict the value of the digit on the test subset
+
+    accuracy_dev= metrics.accuracy_score(y_dev, clf.predict(X_dev))
+   
+    acc_test= metrics.accuracy_score(y_test,clf.predict(X_test))
+   
+    acc_train= metrics.accuracy_score(y_train,clf.predict(X_train))
 
 ###############################################################################
 # Below we visualize the first 4 test samples and show their predicted
 # digit value in the title.
+    print(f"{clf} Train Accuracy: {acc_train*100:.2f} Dev Accuracy {accuracy_dev*100:.2f} Test Accuracy: {acc_test*100:.2f}\n")
+    if accuracy_dev > best_accuracy[1]:
+        best_accuracy = [acc_train,accuracy_dev,acc_test]
+        most_accurate_model = hyper_params
+print(f"Required Best Accuracy :\n {most_accurate_model}\n Training Accuracy:{best_accuracy[0]*100:.2f}; Dev Accuracy:{best_accuracy[1]*100:.2f}; Test Accuracy:{best_accuracy[2]*100:.2f};\n")
 
-_, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
-for ax, image, prediction in zip(axes, X_test, predicted):
-    ax.set_axis_off()
-    image = image.reshape(8, 8)
-    ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
-    ax.set_title(f"Prediction: {prediction}")
-
-###############################################################################
-# :func:`~sklearn.metrics.classification_report` builds a text report showing
-# the main classification metrics.
-
-print(
-    f"Classification report for classifier {clf}:\n"
-    f"{metrics.classification_report(y_test, predicted)}\n"
-)
-
-###############################################################################
-# We can also plot a :ref:`confusion matrix <confusion_matrix>` of the
-# true digit values and the predicted digit values.
-
-disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predicted)
-disp.figure_.suptitle("Confusion Matrix")
-print(f"Confusion matrix:\n{disp.confusion_matrix}")
-
-plt.show()
