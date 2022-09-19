@@ -78,6 +78,7 @@ best_accuracy=[-1,-1,-1]
 for GAMMA in param_grid['gamma']:
     for C in param_grid['C']:
         hyper_params = {'gamma':GAMMA, 'C':C}
+        print(f"hyperParameters:{hyper_params}")
         clf = svm.SVC()
         clf.set_params(**hyper_params)
 # Split data into 40% train,30% test. 30% dev  subsets
