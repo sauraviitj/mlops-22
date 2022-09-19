@@ -39,7 +39,8 @@ for ax, image, label in zip(axes, digits.images, digits.target):
     ax.set_axis_off()
     ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
     ax.set_title("Training: %i" % label)
-
+from skimage.transform import rescale
+print(f"Size of Input image:\t\t{digits.images[0].shape}\t\n")
 ###############################################################################
 # Classification
 # --------------
@@ -56,19 +57,19 @@ for ax, image, label in zip(axes, digits.images, digits.target):
 # in the test subset.
 
 # flatten the images
-from skimage.transform import rescale
-print(f"Size of Input image:\t\t{digits.images[0].shape}\t\n")
+
 
 rescaled_images = np.asarray([rescale(img, 0.25, anti_aliasing=False) for img in digits.images])
     
     #print(rescaled_images)
-print(f"Size of Rescaled image:\t\t{rescaled_images[0].shape}\n")
-
-# flatten the images
-n_samples = len(rescaled_images)
-data = rescaled_images.reshape((n_samples, -1))
 
 
+
+
+data = rescaled_images.reshape((len(rescaled_images), -1))
+
+#Lets print the shape of the reshaped image
+print(f"Size of Rescaled image:   {rescaled_images[0].shape}\n")
 
 
 # Create a classifier: a support vector classifier
@@ -83,13 +84,13 @@ for GAMMA in param_grid['gamma']:
         clf.set_params(**hyper_params)
 # Split data into 40% train,30% test. 30% dev  subsets
     X_train, X_dev_test, y_train, y_dev_test = train_test_split(
-    data, digits.target, test_size=0.6, shuffle=False
+    data, digits.target, test_size=0.6, random_state=42
 )
     X_dev, X_test, y_dev, y_test = train_test_split(
-    X_dev_test, y_dev_test, test_size=0.5, shuffle=False
+    X_dev_test, y_dev_test, test_size=0.5, random_state=42
 )
 
-# Learn the digits on the train subset
+#fit data
     clf.fit(X_train, y_train)
 
 
