@@ -12,8 +12,9 @@ hand-written digits, from 0-9.
 # License: BSD 3 clause
 
 # Standard scientific Python imports
+from statistics import mean, median
 import matplotlib.pyplot as plt
-
+import statistics
 # Import datasets, classifiers and performance metrics
 from sklearn import datasets, svm, metrics
 from sklearn.model_selection import train_test_split
@@ -73,7 +74,7 @@ print(f"Size of Rescaled image:   {rescaled_images[0].shape}\n")
 
 
 # Create a classifier: a support vector classifier
-param_grid = {'gamma': [1, 0.1, 0.01, 0.001, 0.0001], 'C': [0.1, 1, 20, 100,2000] } 
+param_grid = {'gamma': [1,0.5, 0.2, 0.1,0.07,0.05,0.03,0.01, 0.001, 0.0001], 'C': [0.1, 1, 20, 100,200,500,700,1000,1200,2000] } 
 best_accuracy=[-1,-1,-1]
 #most_accurate_model = None
 for GAMMA in param_grid['gamma']:
@@ -84,7 +85,7 @@ for GAMMA in param_grid['gamma']:
         clf.set_params(**hyper_params)
 # Split data into 40% train,30% test. 30% dev  subsets
     X_train, X_dev_test, y_train, y_dev_test = train_test_split(
-    data, digits.target, test_size=0.6, random_state=42
+    data, digits.target, test_size=0.5, random_state=42
 )
     X_dev, X_test, y_dev, y_test = train_test_split(
     X_dev_test, y_dev_test, test_size=0.5, random_state=42
@@ -105,7 +106,15 @@ for GAMMA in param_grid['gamma']:
 ###############################################################################
 # Below we visualize the first 4 test samples and show their predicted
 # digit value in the title.
+############################
     print(f"{clf} Train Accuracy: {acc_train*100:.2f} Dev Accuracy {accuracy_dev*100:.2f} Test Accuracy: {acc_test*100:.2f}\n")
+    mean_accuracy= (accuracy_dev+acc_test+acc_train)/3
+    max_accuracy= max(accuracy_dev,acc_test, acc_train)
+    median_accuracy =statistics.median([accuracy_dev,acc_test, acc_train])
+    print(f"\n mean Accuracy :{mean_accuracy}\n")
+    print(f"max_Accuracy: {max_accuracy}\n")
+    print(f"median_Accuracy:{median_accuracy}")
+   
     if accuracy_dev > best_accuracy[1]:
         best_accuracy = [acc_train,accuracy_dev,acc_test]
         most_accurate_model = hyper_params
