@@ -33,7 +33,7 @@ import numpy as np
 # them using :func:`matplotlib.pyplot.imread`.
 
 digits = datasets.load_digits()
-
+target = datasets.load_digits()
 _, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
 for ax, image, label in zip(axes, digits.images, digits.target):
     ax.set_axis_off()
@@ -79,7 +79,7 @@ best_accuracy=[-1,-1,-1]
 for GAMMA in param_grid['gamma']:
     for C in param_grid['C']:
         hyper_params = {'gamma':GAMMA, 'C':C}
-        print(f"hyperParameters:{hyper_params}")
+       # print(f"hyperParameters:{hyper_params}")
         clf = svm.SVC()
         clf.set_params(**hyper_params)
 # Split data into 40% train,30% test. 30% dev  subsets
@@ -92,8 +92,20 @@ for GAMMA in param_grid['gamma']:
 
 #fit data
     clf.fit(X_train, y_train)
-
-
+    
+    # adding classifier
+    gamma =0.001
+    from sklearn.preprocessing import StandardScaler    
+    st_x= StandardScaler()    
+    x_train= st_x.fit_transform(X_train)    
+    x_test= st_x.transform(X_test) 
+    from sklearn.svm import SVC # "Support vector classifier"  
+    model = SVC(kernel='linear', random_state=0)  
+    model.fit(x_train, y_train)
+    predicted = model.predict(x_test)
+    print(type(predicted))
+    
+    #print(f"classifier: {classifier}")
  # Predict the value of the digit on the test subset
 
     accuracy_dev= metrics.accuracy_score(y_dev, clf.predict(X_dev))
@@ -101,7 +113,23 @@ for GAMMA in param_grid['gamma']:
     acc_test= metrics.accuracy_score(y_test,clf.predict(X_test))
    
     acc_train= metrics.accuracy_score(y_train,clf.predict(X_train))
+def test_predict_not_oneclass():
+    for this_val in predicted:
+        result = np.all(predicted == this_val)
+        assert result == False
 
+
+
+def test_predicted_from_all_class():
+    flag = False
+    for digit in target:
+        flag = True
+        if digit not in predicted:
+            flag = False
+            print()
+            print(str(digit) +" is not present at predicted class")
+            break
+    assert flag == True
 ###############################################################################
 # Below we visualize the first 4 test samples and show their predicted
 # digit value in the title.
@@ -109,5 +137,6 @@ for GAMMA in param_grid['gamma']:
     if accuracy_dev > best_accuracy[1]:
         best_accuracy = [acc_train,accuracy_dev,acc_test]
         most_accurate_model = hyper_params
-print(f"Required Best Accuracy :\n {most_accurate_model}\n Training Accuracy:{best_accuracy[0]*100:.2f}; Dev Accuracy:{best_accuracy[1]*100:.2f}; Test Accuracy:{best_accuracy[2]*100:.2f};\n")
+
+#print(f"Required Best Accuracy :\n {most_accurate_model}\n Training Accuracy:{best_accuracy[0]*100:.2f}; Dev Accuracy:{best_accuracy[1]*100:.2f}; Test Accuracy:{best_accuracy[2]*100:.2f};\n")
 
