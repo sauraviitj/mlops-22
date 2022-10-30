@@ -51,5 +51,20 @@ print(f'SVM = {result[0]}')
 print(f'Decision Tree = {result[1]}')
 print(f'SVM = \t\tmean:\t{statistics.mean(result[0]):.2f},\t Standard Deviation:\t{statistics.stdev(result[0]):.2f},')
 print(f'Decision Tree = \tmean:\t{statistics.mean(result[1]):.2f},\t Standard Deviation:\t{statistics.stdev(result[1]):.2f},')
+import matplotlib.pyplot as plt
+y2= result[0]
+y3 = result[1]
+plt.rcParams["figure.figsize"]=[8.50,4]
+plt.rcParams["figure.autolayout"]= True
 
+x=[1,2,3,4,5]
+plt.margins(x=0)
+plt.xlabel('Iterations')
+plt.ylabel('Accuracy')
+
+plt.plot(x,y2, label= "SVM", marker= "*")
+plt.plot(x,y3, label= "Decision_tree", marker="x")
+plt.legend()
+
+plt.show()
 
