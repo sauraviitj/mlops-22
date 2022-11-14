@@ -1,5 +1,4 @@
-# mlops-22
-Here is the current output of `python plot_graphs.py`
+
 
 ```
 Found new best metric with :{'gamma': 0.01, 'C': 0.1}
@@ -18,9 +17,9 @@ Found new best metric with :{'gamma': 0.005, 'C': 0.7}
 New best val metric:0.9834254143646409
 Found new best metric with :{'gamma': 0.001, 'C': 0.7}
 New best val metric:0.988950276243094
-Found new best metric with :{'gamma': 0.0001, 'C': 5}
+Found new best metric with :{'gamma': 0.001, 'C': 0.2}
 New best val metric:0.994475138121547
-Classification report for classifier SVC(C=10, gamma=0.0001):
+Classification report for classifier SVC(C=0.2, gamma=0.001):
               precision    recall  f1-score   support
 
            0       1.00      1.00      1.00        15
@@ -34,23 +33,16 @@ Classification report for classifier SVC(C=10, gamma=0.0001):
            8       0.96      0.96      0.96        26
            9       0.88      1.00      0.94        22
 
-    accuracy                           0.97       179
-   macro avg       0.98      0.97      0.98       179
-weighted avg       0.97      0.97      0.97       179
+    accuracy                           0.97       169
+   macro avg       0.98      0.97      0.98       168
+weighted avg       0.97      0.97      0.97       168
 
 
 Best hyperparameters were:
-{'gamma': 0.0001, 'C': 5}
+{'gamma': 0.001, 'C': 0.2}
 ```
 
 
 
 
-```
-docker build -t exp:v1 -f docker/Dockerfile .
-docker run -it exp:v1
-```
 
-```
-export FLASK_APP=api/app.py ; flask run
-```

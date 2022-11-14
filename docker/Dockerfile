@@ -1,6 +1,12 @@
 FROM python:3.8.1
-COPY ./*.py /exp/
-COPY ./requirements.txt /exp/requirements.txt
-RUN pip3 install --no-cache-dir -r /exp/requirements.txt
-WORKDIR /exp
-CMD ["python3", "./plot_graphs.py"]
+WORKDIR /app
+COPY . .
+RUN pip3 install --no-cache-dir -r requirements.txt
+EXPOSE 5000
+
+ENTRYPOINT ["python3"]
+CMD ["app.py"]
+Footer
+© 2022 GitHub, Inc.
+Footer navigation
+Terms
