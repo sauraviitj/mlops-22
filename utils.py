@@ -1,88 +1,52 @@
+# Standard scientific Python imports
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn import datasets, metrics, svm
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
-from joblib import dump
-from sklearn import svm, tree
-import pdb
+from statistics import mean, median
+import seaborn as sns
 
 
-def get_all_combs(param_vals, param_name, combs_so_far):
-    new_combs_so_far = []        
-    for c in combs_so_far:        
-        for v in param_vals:
-            cc = c.copy()
-            cc[param_name] = v
-            new_combs_so_far.append(cc)
-    return new_combs_so_far
-
-
-def get_all_h_param_comb(params):
-    h_param_comb = [{}]
-    for p_name in params:
-        h_param_comb = get_all_combs(
-            param_vals=params[p_name], param_name=p_name, combs_so_far=h_param_comb
-        )
-
-    return h_param_comb
-
-
-def preprocess_digits(dataset):
-    n_samples = len(dataset.images)
-    data = dataset.images.reshape((n_samples, -1))
-    label = dataset.target
-    return data, label
-
-
-# other types of preprocessing
-# - image : 8x8 : resize 16x16, 32x32, 4x4 : flatteing
-# - normalize data: mean normalization: [x - mean(X)]
-#                 - min-max normalization
-# - smoothing the image: blur on the image
-
-
-def data_viz(dataset):
-    # PART: sanity check visualization of the data
+def data_viz(data_to_viz):
     _, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
-    for ax, image, label in zip(axes, dataset.images, dataset.target):
+    for ax, image, label in zip(axes, data_to_viz.images, data_to_viz.target):
         ax.set_axis_off()
         ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
         ax.set_title("Training: %i" % label)
 
 
-# PART: Sanity check of predictions
-def pred_image_viz(x_test, predictions):
-    _, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
-    for ax, image, prediction in zip(axes, x_test, predictions):
-        ax.set_axis_off()
-        image = image.reshape(8, 8)
-        ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
-        ax.set_title(f"Prediction: {prediction}")
+def data_preprocess(data):
+    # flatten the images
+    n_samples = len(data.images)
+    x = data.images.reshape((n_samples, -1))
+    return x, data.target
 
 
-# PART: define train/dev/test splits of experiment protocol
-# train to train model
-# dev to set hyperparameters of the model
-# test to evaluate the performance of the model
-
-
-def train_dev_test_split(data, label, train_frac, dev_frac):
+def train_dev_test_split(data, label, train_frac, dev_frac, random_state=None):
 
     dev_test_frac = 1 - train_frac
     x_train, x_dev_test, y_train, y_dev_test = train_test_split(
-        data, label, test_size=dev_test_frac, shuffle=True
+        data, label, test_size=dev_test_frac, shuffle=True, random_state=random_state
     )
     x_test, x_dev, y_test, y_dev = train_test_split(
-        x_dev_test, y_dev_test, test_size=(dev_frac) / dev_test_frac, shuffle=True
+        x_dev_test, y_dev_test, test_size=(dev_frac) / dev_test_frac, shuffle=True, random_state=random_state
     )
 
     return x_train, y_train, x_dev, y_dev, x_test, y_test
 
 
-def h_param_tuning(h_param_comb, clf, x_train, y_train, x_dev, y_dev, metric, verbose=False):
-    best_metric = -1.0
-    best_model = None
-    best_h_params = None
+def h_param_tuning(h_param_comb, clf, x_train, y_train, x_dev, y_dev, x_test, y_test, metric):
+    best_metric_train = -1.0
+    best_h_params_train = None
+    best_metric_dev = -1.0
+    best_h_params_dev = None
+    best_metric_test = -1.0
+    best_h_params_test = None
+    metric_list_train = []
+    metric_list_dev = []
+    metric_list_test = []
     # 2. For every combination-of-hyper-parameter values
+    print(f"Classifier \t\t\t\t\t\t\t|\t Train Acc \t|\t Dev Acc \t|\t Test Acc \n")
     for cur_h_params in h_param_comb:
 
         # PART: setting up hyperparameter
@@ -94,53 +58,73 @@ def h_param_tuning(h_param_comb, clf, x_train, y_train, x_dev, y_dev, metric, ve
         # Learn the digits on the train subset
         clf.fit(x_train, y_train)
 
-        # print(cur_h_params)
-        # PART: get dev set predictions
-        predicted_dev = clf.predict(x_dev)
+        # Predict the value of the digit on the test subset
+        pred_dev = clf.predict(x_dev)
+        acc_dev = metric(y_dev, pred_dev)
+        pred_test = clf.predict(x_test)
+        acc_test = metric(y_test, pred_test)
+        pred_train = clf.predict(x_train)
+        acc_train = metric(y_train, pred_train)
 
-        # 2.b compute the accuracy on the validation set
-        cur_metric = metric(y_pred=predicted_dev, y_true=y_dev)
-
+        metric_list_train.append(acc_train)
+        metric_list_dev.append(acc_dev)
+        metric_list_test.append(acc_test)
+        print(
+            f"{clf}\t\t\t\t\t\t\t {acc_train*100:.3f}\t\t\t {acc_dev*100:.3f}\t\t\t {acc_test*100:.3f}")
         # 3. identify the combination-of-hyper-parameter for which validation set accuracy is the highest.
-        if cur_metric > best_metric:
-            best_metric = cur_metric
-            best_model = clf
-            best_h_params = cur_h_params
-            if verbose:
-                print("Found new best metric with :" + str(cur_h_params))
-                print("New best val metric:" + str(cur_metric))
-    return best_model, best_metric, best_h_params
+        if acc_dev > best_metric_dev:
+            best_metric_dev = acc_dev
+            best_h_params_dev = cur_h_params
+        if acc_train > best_metric_train:
+            best_metric_train = acc_train
+            best_h_params_train = cur_h_params
+        if acc_test > best_metric_test:
+            best_metric_test = acc_test
+            best_h_params_test = cur_h_params
+    print("\n\t* Min, max, mean, median of the accuracies obtained in previous step : *\t\n")
+    print(f"Train Set Accuracy\t\t Min: {min(metric_list_train)*100:.3f}\t\t Max: {max(metric_list_train)*100:.3f}\t\t Mean: {mean(metric_list_train)*100:.3f}\t\t Median: {median(metric_list_train)*100:.3f}")
+    print(f"Dev Set Accuracy\t\t Min: {min(metric_list_dev)*100:.3f}\t\t Max: {max(metric_list_dev)*100:.3f}\t\t Mean: {mean(metric_list_dev)*100:.3f}\t\t Median: {median(metric_list_dev)*100:.3f}")
+    print(f"Test Set Accuracy\t\t Min: {min(metric_list_test)*100:.3f}\t\t Max: {max(metric_list_test)*100:.3f}\t\t Mean: {mean(metric_list_test)*100:.3f}\t\t Median: {median(metric_list_test)*100:.3f}")
+
+    print(
+        f"\nBest Classification Train Accuracy for {best_h_params_train} is {best_metric_train:.2f}")
+    print(
+        f"Best Classification Dev Accuracy for {best_h_params_dev} is {best_metric_dev:.2f}")
+    print(
+        f"Best Classification Test Accuracy for {best_h_params_test} is {best_metric_test:.2f}")
+    clf.set_params(**best_h_params_test)
+    return clf, best_metric_test, best_h_params_test
 
 
-def tune_and_save(
-    clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb, model_path
-):
-    best_model, best_metric, best_h_params = h_param_tuning(
-        h_param_comb, clf, x_train, y_train, x_dev, y_dev, metric
-    )
-
-    # save the best_model
-    best_param_config = "_".join(
-        [h + "=" + str(best_h_params[h]) for h in best_h_params]
-    )
-
-    if type(clf) == svm.SVC:
-        model_type = "svm"
-
-    if type(clf) == tree.DecisionTreeClassifier:
-        model_type = "decision_tree"
-
-    best_model_name = model_type + "_" + best_param_config + ".joblib"
-    if model_path == None:
-        model_path = best_model_name
-    dump(best_model, model_path)
-
-    print("Best hyperparameters were:" + str(best_h_params))
-
-    print("Best Metric on Dev was:{}".format(best_metric))
-
-    return model_path
+# PART: Sanity check of predictions
+def visualize_pred_data(X_test, predicted):
+    _, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
+    for ax, image, prediction in zip(axes, X_test, predicted):
+        ax.set_axis_off()
+        image = image.reshape(8, 8)
+        ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
+        ax.set_title(f"Prediction: {prediction}")
 
 
-def macro_f1(y_true, y_pred, pos_label=1):
-    return f1_score(y_true, y_pred, pos_label=pos_label, average='macro', zero_division='warn')
+def generate_h_param_comb(gamma_list, c_list):
+    return [{"gamma": g, "C": c} for g in gamma_list for c in c_list]
+
+
+sns.set(rc={'axes.facecolor': 'lightblue', 'figure.facecolor': 'lightblue'})
+
+
+def confusionMatrixAndAccuracyReport(Y_test, Y_pred):
+    cm = metrics.confusion_matrix(Y_test, Y_pred)
+    overallAccuracy = np.trace(cm)/sum(cm.flatten())
+
+    classwiseAccuracy = cm.diagonal()/cm.sum(axis=1)
+
+    plt.figure(figsize=(10, 10))
+    plt.title('Accuracy Score: {0:3.3f}'.format(overallAccuracy), size=14)
+    plt.ylabel('Actual label')
+    plt.xlabel('Predicted label')
+    sns.heatmap(data=cm, annot=True, square=True,  cmap='Blues', fmt='g')
+
+    plt.show()
+    print('Overall Accuracy Score: {0:3.3f}'.format(overallAccuracy))
+    print('Classwise Accuracy Score: {0}'.format(classwiseAccuracy))

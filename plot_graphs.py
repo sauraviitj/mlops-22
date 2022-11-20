@@ -1,88 +1,67 @@
-# Author: Gael Varoquaux <gael dot varoquaux at normalesup dot org>
-# License: BSD 3 clause
+import argparse
+import numpy as np
+from sklearn import datasets, metrics, svm
+from sklearn import tree
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import  accuracy_score, precision_score, recall_score, f1_score
+from utils import data_preprocess
+from utils import train_dev_test_split
+from utils import h_param_tuning
+from joblib import dump
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--clf_name', type=str)
+parser.add_argument('--random_state', type=int)
+args = parser.parse_args()
 
 
-# PART: library dependencies -- sklear, torch, tensorflow, numpy, transformers
 
-# Import datasets, classifiers and performance metrics
-from sklearn import datasets, svm, metrics, tree
-import pdb
-
-from utils import (
-    preprocess_digits,
-    train_dev_test_split,
-    data_viz,
-    get_all_h_param_comb,
-    tune_and_save,
-    macro_f1
-)
-from joblib import dump, load
-
-train_frac, dev_frac, test_frac = 0.8, 0.1, 0.1
-assert train_frac + dev_frac + test_frac == 1.0
-
-# 1. set the ranges of hyper parameters
-gamma_list = [0.01, 0.005, 0.001, 0.0005, 0.0001]
-c_list = [0.1, 0.2, 0.5, 0.7, 1, 2, 5, 7, 10]
-
-svm_params = {}
-svm_params["gamma"] = gamma_list
-svm_params["C"] = c_list
-svm_h_param_comb = get_all_h_param_comb(svm_params)
-
-max_depth_list = [2, 10, 20, 50, 100]
-
-dec_params = {}
-dec_params["max_depth"] = max_depth_list
-dec_h_param_comb = get_all_h_param_comb(dec_params)
-
-h_param_comb = {"svm": svm_h_param_comb, "decision_tree": dec_h_param_comb}
-
-# PART: load dataset -- data from csv, tsv, jsonl, pickle
 digits = datasets.load_digits()
-data_viz(digits)
-data, label = preprocess_digits(digits)
-# housekeeping
+
+data, label = data_preprocess(digits)
+
 del digits
 
-# define the evaluation metric
-metric_list = [metrics.accuracy_score, macro_f1]
-h_metric = metrics.accuracy_score
+gamma_list = [0.01, 0.005, 0.001, 0.0005, 0.0001]
+c_list = [0.1, 0.2, 0.5, 0.6, 1, 2, 5, 7, 10]
+h_param_comb_svm = [{"gamma": g, "C": c} for g in gamma_list for c in c_list]
 
-n_cv = 5
-results = {}
-for n in range(n_cv):
-    x_train, y_train, x_dev, y_dev, x_test, y_test = train_dev_test_split(
-        data, label, train_frac, dev_frac
-    )
-    # PART: Define the model
-    # Create a classifier: a support vector classifier
-    models_of_choice = {
-        "svm": svm.SVC(),
-        "decision_tree": tree.DecisionTreeClassifier(),
-    }
-    for clf_name in models_of_choice:
-        clf = models_of_choice[clf_name]
-        print("[{}] Running hyper param tuning for {}".format(n,clf_name))
-        actual_model_path = tune_and_save(
-            clf, x_train, y_train, x_dev, y_dev, h_metric, h_param_comb[clf_name], model_path=None
-        )
+min_samples_split_list = [1,4,6,12]
+min_samples_leaf_list = [1,3,5,10]
 
-        # 2. load the best_model
-        best_model = load(actual_model_path)
+h_param_comb_dtree = [{"min_samples_leaf": g, "min_samples_split": c}for g in min_samples_leaf_list for c in min_samples_split_list]
 
-        # PART: Get test set predictions
-        # Predict the value of the digit on the test subset
-        predicted = best_model.predict(x_test)
-        if not clf_name in results:
-            results[clf_name]=[]    
+model_of_choices = [svm.SVC(),tree.DecisionTreeClassifier()]
+hyper_param = [h_param_comb_svm,h_param_comb_dtree]
+metric=metrics.accuracy_score
 
-        results[clf_name].append({m.__name__:m(y_pred=predicted, y_true=y_test) for m in metric_list})
-        # 4. report the test set accurancy with that best model.
-        # PART: Compute evaluation metrics
-        print(
-            f"Classification report for classifier {clf}:\n"
-            f"{metrics.classification_report(y_test, predicted)}\n"
-        )
+x = list(set(label))
 
-print(results)
+
+
+if args.clf_name in "svm":
+    clf = model_of_choices[0]
+elif args.clf_name in "tree":
+    clf = model_of_choices[1]
+X_train, y_train, X_dev, y_dev, X_test, y_test = train_dev_test_split(
+    data, label, 0.6,.2,args.random_state
+)
+
+
+
+best_model, best_metric, best_h_params = h_param_tuning(hyper_param[0], clf, X_train, y_train, X_dev, y_dev, X_test, y_test, metric)
+prediction = best_model.predict(X_test)
+
+model_loc = f'{best_model}.joblib'
+dump(best_model, model_loc)
+accuracy = metrics.accuracy_score(y_test, prediction)
+macrof1 = metrics.f1_score(y_test, prediction, average='macro')
+
+out_text = [f'test accuracy: {accuracy}', f'test macro-f1: {macrof1}',
+            f'model saved at ./{model_loc}']
+
+filename = f"{args.clf_name}_{args.random_state}.txt"
+
+with open(filename, 'w') as file:
+    file.writelines("% s\n" % data for data in out_text)
